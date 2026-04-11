@@ -3,7 +3,5 @@
 import CreateBlogUtil from '../../components/CreateBlog';
 
 export default function CreateBlog() {
-    return (
-      <CreateBlogUtil className="bg-white"/>
-    );
-  }
+  return <CreateBlogUtil />;
+}
