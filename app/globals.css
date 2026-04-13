@@ -2,36 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Geist+Variable:wght@100..900&display=swap');
-
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  --background: #f8f7f4;
+  --surface: #ffffff;
+  --foreground: #1f1f1f;
+  --muted: #666666;
+  --border: rgba(0, 0, 0, 0.08);
+  --brand: #86005e;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  font-family: 'Playfair Display', serif, 'Geist Variable', sans-serif;
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  margin: 0;
+  min-height: 100vh;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans), system-ui, sans-serif;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-serif), Georgia, serif;
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .surface-card {
+    @apply rounded-2xl border bg-white shadow-sm;
+    border-color: var(--border);
+  }
+
+  .pressable-btn {
+    @apply transition-all duration-150 hover:-translate-y-px hover:shadow-[0_2px_6px_rgba(239,68,68,0.6)] active:translate-y-0 active:scale-[0.95] disabled:cursor-wait disabled:opacity-80 disabled:hover:translate-y-0;
   }
 }

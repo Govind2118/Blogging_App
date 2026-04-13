@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import EditBlog from "../../components/EditBlog";
+import EditBlogUtil from "../../components/EditBlog";
 import { ClipLoader } from "react-spinners";
 
 const PageSpinner = () => (
@@ -18,7 +18,7 @@ const EditBlogContent = () => {
 
   if (!id) return <PageSpinner />;
 
-  return <EditBlog id={id} />;
+  return <EditBlogUtil id={id} />;
 };
 
 const EditBlogPage = () => {

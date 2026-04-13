@@ -1,40 +1,43 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { db, storage } from '../firebase';
-import Blog from '../components/Blog';
 import { collection, getDocs } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { Add16Regular } from '@fluentui/react-icons';
 import { ClipLoader } from 'react-spinners';
+import Blog from '../components/Blog';
+import { db, storage } from '../firebase';
 
-function preloadImage(url) {
-  return new Promise((resolve, reject) => {
+const HERO_COPY = {
+  title: 'Investor Daily India',
+  subtitle: 'A blog sharing the daily updates in Indian Real Estate and Investment markets.',
+};
+
+const preloadImage = (url) =>
+  new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve();
+    img.onload = resolve;
     img.onerror = () => reject(new Error('Background image failed to load'));
     img.src = url;
   });
-}
 
 const HomePage = () => {
   const [blogs, setBlogs] = useState([]);
   const [blogsLoading, setBlogsLoading] = useState(true);
   const [backgroundUrl, setBackgroundUrl] = useState('');
-  /** Resolves only after we know whether a hero image is usable (URL + decode). */
   const [backgroundPhase, setBackgroundPhase] = useState('checking');
   const [navigatingCreate, setNavigatingCreate] = useState(false);
   const [uploadingBackground, setUploadingBackground] = useState(false);
+  const fileInputRef = useRef(null);
   const router = useRouter();
 
   useEffect(() => {
     const fetchBlogs = async () => {
       setBlogsLoading(true);
       try {
-        const blogsCollection = collection(db, 'blog');
-        const blogsSnapshot = await getDocs(blogsCollection);
-        const blogsList = blogsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const blogsSnapshot = await getDocs(collection(db, 'blog'));
+        const blogsList = blogsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         setBlogs(blogsList);
       } finally {
         setBlogsLoading(false);
@@ -60,195 +63,167 @@ const HomePage = () => {
     fetchBackgroundImage();
   }, []);
 
-  const Navigation = () => {
-    return (
-      <div className="flex flex-row justify-between items-center p-4 gap-[994px] fixed w-full h-[100px] top-0 bg-[#F4F4F4] z-50">
-        <div className="flex items-center">
-          <img src="/logo.png" alt="Logo" className="h-[60px]" />
-        </div>
-        <div className="flex items-center space-x-8">
-          <a href="#" className="text-black">Home</a>
-          <a href="#" className="text-black">About</a>
-          <a href="#" className="text-black">Listings</a>
-          <a href="#" className="text-black">FAQ</a>
-          <button className="bg-gray-500 text-white px-4 py-2 rounded-md">Contact us</button>
-        </div>
-      </div>
-    );
-  };
-
   const handleCreateNewBlog = () => {
     setNavigatingCreate(true);
     router.push('/createBlog');
   };
 
   const handleFileChange = async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setUploadingBackground(true);
-      setBackgroundPhase('checking');
-      try {
-        const storageRef = ref(storage, 'backgrounds/backgroundImage.jpg');
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-        await preloadImage(url);
-        setBackgroundUrl(url);
-        setBackgroundPhase('ready');
-      } catch (error) {
-        console.error('Error uploading background:', error);
-        setBackgroundUrl('');
-        setBackgroundPhase('absent');
-      } finally {
-        setUploadingBackground(false);
-        event.target.value = '';
-      }
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingBackground(true);
+    setBackgroundPhase('checking');
+
+    try {
+      const storageRef = ref(storage, 'backgrounds/backgroundImage.jpg');
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      await preloadImage(url);
+      setBackgroundUrl(url);
+      setBackgroundPhase('ready');
+    } catch (error) {
+      console.error('Error uploading background:', error);
+      setBackgroundUrl('');
+      setBackgroundPhase('absent');
+    } finally {
+      setUploadingBackground(false);
+      event.target.value = '';
     }
   };
 
-  const MainLayout = () => {
-    const openFilePicker = () => {
-      document.getElementById('fileInput').click();
+  const heroStyle = useMemo(() => {
+    if (backgroundPhase !== 'ready' || !backgroundUrl) return undefined;
+    return {
+      backgroundImage: `linear-gradient(rgba(0,0,0,0.22), rgba(0,0,0,0.38)), url(${backgroundUrl})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
     };
+  }, [backgroundPhase, backgroundUrl]);
 
-    const showHeroImage = backgroundPhase === 'ready' && backgroundUrl;
-
-    return (
-      <div
-        className={`relative mt-[100px] w-full h-[60vh] overflow-hidden drop-shadow-md z-10 transition-[background-color,opacity] duration-500 ease-out ${!showHeroImage ? 'bg-[#888888]' : ''}`}
-        style={
-          showHeroImage
-            ? {
-                backgroundImage: `url(${backgroundUrl})`,
-                backgroundSize: 'cover',
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center center',
-              }
-            : undefined
-        }
-      >
-        <input type="file" id="fileInput" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} />
-
-        {backgroundPhase === 'checking' && (
-          <div className="absolute right-[24.72px] top-[24.19px] flex items-center gap-3 rounded-[6px] bg-black/25 px-4 py-2.5 text-white backdrop-blur-sm">
-            <ClipLoader size={16} color="#ffffff" />
+  return (
+    <div className="min-h-screen bg-[#F8F7F4] text-[#1F1F1F]">
+      <header className="sticky top-0 z-50 border-b border-black/5 bg-[#F4F4F4]/95 backdrop-blur">
+        <div className="flex min-h-[84px] items-center justify-between gap-6 py-4 px-4">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Investor Daily Dubai logo" className="h-12 w-auto sm:h-14" />
           </div>
-        )}
 
-        {backgroundPhase === 'absent' && (
-          <button
-            type="button"
-            onClick={openFilePicker}
-            disabled={uploadingBackground}
-            className="absolute flex items-center justify-center gap-2 p-[15px_20px_15px_24px] min-w-[221px] h-[49px] right-[24.72px] top-[24.19px] bg-white rounded-[6px] shadow-sm transition-opacity duration-200 disabled:cursor-wait disabled:opacity-80 hover:shadow-md"
-          >
-            {uploadingBackground ? (
-              <>
-                <ClipLoader size={16} color="#222222" />
-                <div className="text-[16px] font-[400] text-[#222222]">Uploading…</div>
-              </>
-            ) : (
-              <div className="text-[16px] font-[400] text-[#222222]">Add a blog background</div>
-            )}
-          </button>
-        )}
-
-        <div className="relative z-10 mt-[120px] ml-[100px] font-playfair-display font-semibold text-[54px] leading-[72px] text-white">
-          Investor Daily Dubai
+          <nav className="hidden items-center gap-7 text-sm text-[#333333] md:flex">
+            <a href="#" className="hover:text-black">Home</a>
+            <a href="#" className="hover:text-black">About</a>
+            <a href="#" className="hover:text-black">Listings</a>
+            <a href="#" className="hover:text-black">FAQ</a>
+            <button type="button" className="pressable-btn rounded-md bg-[#333333] px-4 py-2 text-white">
+              Contact us
+            </button>
+          </nav>
         </div>
+      </header>
 
-        <div className="relative z-10 ml-[100px] font-['Geist Variable'] font-normal text-[20px] leading-[170%] text-[#F4F4F4]">
-          A blog sharing the daily updates in Dubai Real Estate and Investment markets.
-        </div>
+      <section className={`border-b border-black/5 ${backgroundPhase === 'ready' && backgroundUrl ? '' : 'bg-[#8B8B8B]'}`} style={heroStyle}>
+        <div className="page-shell flex min-h-[420px] flex-col justify-between gap-10 py-8 sm:min-h-[500px] sm:py-10 lg:min-h-[560px]">
+          <div className="flex justify-end">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileChange}
+            />
 
-        <div className="relative z-10 flex flex-row justify-center items-center ml-[100px] mt-[30px] w-fit gap-[20px]">
-          <button
-            type="button"
-            onClick={handleCreateNewBlog}
-            disabled={navigatingCreate}
-            className="flex flex-row justify-center items-center p-[15px_20px_15px_24px] gap-[6px] h-[50px] bg-white rounded-[100px] focus:outline-none cursor-pointer active:scale-90 hover:shadow-[0_2px_6px_rgba(239,68,68,0.6)] active:shadow-[0_2px_6px_rgba(239,68,68,0.6)] transition-all duration-150 disabled:cursor-wait disabled:active:scale-100 disabled:opacity-90"
-          >
-            {navigatingCreate ? (
-              <ClipLoader size={16} color="#333333" />
-            ) : (
-              <>
-                <div className="text-[14px] font-['Geist Variable'] font-normal text-[#333333]">
-                  Create new blog
-                </div>
-                <Add16Regular primaryFill="#333333" className="w-[20px] h-[20px]" />
-              </>
-            )}
-          </button>
-          <button className="text-[14px] font-['Geist Variable'] p-[15px_20px_15px_24px] bg-white rounded-[100px] focus:outline-none h-[50px]">
-            <div className="text-[14px] font-['Geist Variable'] font-normal text-[#999999]">
-              Manage Subscribers • 12.3K
+            {backgroundPhase === 'checking' ? (
+              <div className="inline-flex items-center gap-3 rounded-md bg-black/25 px-4 py-2.5 text-white backdrop-blur-sm">
+                <ClipLoader size={16} color="#ffffff" />
+              </div>
+            ) : backgroundPhase === 'absent' ? (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingBackground}
+                className="pressable-btn inline-flex items-center justify-center gap-2 rounded-md bg-white px-5 py-3 text-sm text-[#222222] shadow-sm"
+              >
+                {uploadingBackground ? (
+                  <>
+                    <ClipLoader size={16} color="#222222" />
+                    <span>Uploading…</span>
+                  </>
+                ) : (
+                  <span>Add a blog background</span>
+                )}
+              </button>
+            ) : null}
+          </div>
+
+          <div className="max-w-3xl space-y-5 pb-4 text-white sm:space-y-6 sm:pb-8">
+            <div className="space-y-4">
+              <h1 className="text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">{HERO_COPY.title}</h1>
+              <p className="max-w-2xl text-base leading-8 text-white/90 sm:text-lg">{HERO_COPY.subtitle}</p>
             </div>
-          </button>
+
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleCreateNewBlog}
+                disabled={navigatingCreate}
+                className="pressable-btn inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-3 text-sm text-[#333333]"
+              >
+                {navigatingCreate ? (
+                  <ClipLoader size={16} color="#333333" />
+                ) : (
+                  <>
+                    <span>Create new blog</span>
+                    <Add16Regular primaryFill="#333333" className="h-5 w-5" />
+                  </>
+                )}
+              </button>
+
+              <button type="button" className="rounded-full bg-white/95 px-5 py-3 text-sm text-[#666666] shadow-sm">
+                Manage Subscribers • 12.3K
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    );
-  };
+      </section>
 
-  const BlogView = () => {
-    return (
-      <div className="flex justify-center z-30">
-
+      <main className="page-shell py-10 sm:py-12">
         {blogsLoading ? (
-          <div className="relative flex w-full min-h-[320px] items-center justify-center bg-white py-16">
+          <div className="surface-card flex min-h-[320px] items-center justify-center py-16">
             <div className="flex flex-col items-center gap-4">
               <ClipLoader size={40} color="#86005E" />
-              <p className="text-[15px] text-[#666666] font-['Geist Variable']">Loading blogs…</p>
+              <p className="text-sm text-[#666666]">Loading blogs…</p>
             </div>
           </div>
         ) : blogs.length > 0 ? (
-          <div className="relative w-full bg-white pb-[100px] flex justify-center">
-            <div className="flex flex-col items-start p-0 gap-[24px] w-[852px] pb-[100px]">
-              <div></div>
-              {blogs.map(blog => (
-                <Blog key={blog.id} blog={blog} />
-              ))}
-            </div>
+          <div className="flex flex-col gap-6">
+            {blogs.map((blog) => (
+              <Blog key={blog.id} blog={blog} />
+            ))}
           </div>
         ) : (
-          <div className="relative w-full h-[400px] bg-white">
-            <div className="absolute w-full flex flex-col justify-center items-center top-[30px]">
-              <div className="box-border flex flex-col justify-center items-center p-[42px_200px] gap-6 w-[1367px] h-[182px] border border-[rgba(0,0,0,0.2)] rounded-[24px] bg-white">
-                <div className="text-[24px] font-[400]">
-                  Start with your first blog!
-                </div>
-                <button
-                  type="button"
-                  onClick={handleCreateNewBlog}
-                  disabled={navigatingCreate}
-                  className="flex flex-row justify-center items-center p-[15px_20px_15px_24px] gap-[6px] min-w-[192px] h-[50px] bg-[#F4F4F4] shadow-[0px_0px_40px_rgba(255,255,255,0.2),inset_0px_-2px_4px_rgba(0,0,0,0.1)] rounded-[100px] disabled:cursor-wait disabled:opacity-90 transition-opacity duration-150"
-                >
-                  {navigatingCreate ? (
-                    <ClipLoader size={16} color="#333333" />
-                  ) : (
-                    <>
-                      <div className="flex-none order-0 flex-grow-0 font-['Geist Variable'] font-normal text-[16px] leading-[100%] text-[#333333]">
-                        Create new blog
-                      </div>
-                      <div className="flex-none order-1 flex-grow-0 w-[20px] h-[20px] flex items-center justify-center">
-                        <Add16Regular primaryFill="#333333" />
-                      </div>
-                    </>
-                  )}
-                </button>
-              </div>
+          <div className="surface-card flex min-h-[260px] flex-col items-center justify-center gap-6 px-6 py-12 text-center">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-medium text-[#222222]">Start with your first blog</h2>
+              <p className="text-sm text-[#666666]">Create a post to begin building out your homepage.</p>
             </div>
+            <button
+              type="button"
+              onClick={handleCreateNewBlog}
+              disabled={navigatingCreate}
+              className="pressable-btn inline-flex items-center justify-center gap-2 rounded-full bg-[#F4F4F4] px-5 py-3 text-sm text-[#333333]"
+            >
+              {navigatingCreate ? (
+                <ClipLoader size={16} color="#333333" />
+              ) : (
+                <>
+                  <span>Create new blog</span>
+                  <Add16Regular primaryFill="#333333" />
+                </>
+              )}
+            </button>
           </div>
         )}
-
-      </div>
-    );
-  };
-
-
-  return (
-    <div className="relative font-geist-variable h-full">
-      <Navigation />
-      <MainLayout />
-      <BlogView />
+      </main>
     </div>
   );
 };
